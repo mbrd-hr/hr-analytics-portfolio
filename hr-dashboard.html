@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HR Workforce Analytics Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <style>
+    body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif; }
+    .sort-btn:hover { color: #4f46e5; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+
+  <!-- Header -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-20">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div>
+        <h1 class="text-xl font-bold text-slate-900 tracking-tight">HR Workforce Analytics Dashboard</h1>
+        <p class="text-sm text-slate-500">Interactive headcount, compensation, absence, and retention insights (2026)</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="exportCsvBtn" class="px-3 py-2 text-xs font-medium bg-white border border-slate-300 rounded-lg hover:bg-slate-50 text-slate-700 transition">
+          Export Filtered CSV
+        </button>
+        <button id="resetFiltersBtn" class="px-3 py-2 text-xs font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
+          Reset Filters
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <!-- Interactive Filters Bar -->
+    <section class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div>
+          <label for="filterDept" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Department</label>
+          <select id="filterDept" class="w-full rounded-lg border-slate-300 border px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+            <option value="ALL">All Departments</option>
+          </select>
+        </div>
+        <div>
+          <label for="filterContract" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Contract Type</label>
+          <select id="filterContract" class="w-full rounded-lg border-slate-300 border px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+            <option value="ALL">All Contract Types</option>
+          </select>
+        </div>
+        <div>
+          <label for="filterMode" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Work Mode</label>
+          <select id="filterMode" class="w-full rounded-lg border-slate-300 border px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+            <option value="ALL">All Work Modes</option>
+          </select>
+        </div>
+        <div>
+          <label for="filterStatus" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Status</label>
+          <select id="filterStatus" class="w-full rounded-lg border-slate-300 border px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+            <option value="ALL">All Statuses</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <!-- KPI Cards -->
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <!-- Headcount -->
+      <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Headcount</span>
+          <span class="p-2 rounded-lg bg-indigo-50 text-indigo-600 text-xs font-bold">EMP</span>
+        </div>
+        <div id="kpiHeadcount" class="mt-2 text-3xl font-bold text-slate-900">0</div>
+        <div id="kpiHeadcountSub" class="mt-1 text-xs text-slate-500">0 active · 0 departures</div>
+      </div>
+
+      <!-- Average Salary -->
+      <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Avg Gross Salary</span>
+          <span class="p-2 rounded-lg bg-emerald-50 text-emerald-600 text-xs font-bold">PLN</span>
+        </div>
+        <div id="kpiAvgSalary" class="mt-2 text-3xl font-bold text-slate-900">0 PLN</div>
+        <div id="kpiAvgSalarySub" class="mt-1 text-xs text-slate-500">Median: 0 PLN</div>
+      </div>
+
+      <!-- Turnover Rate -->
+      <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Turnover Rate</span>
+          <span class="p-2 rounded-lg bg-rose-50 text-rose-600 text-xs font-bold">%</span>
+        </div>
+        <div id="kpiTurnover" class="mt-2 text-3xl font-bold text-slate-900">0.0%</div>
+        <div id="kpiTurnoverSub" class="mt-1 text-xs text-slate-500">0 departures in selection</div>
+      </div>
+
+      <!-- Overdue Leave Days -->
+      <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Overdue Leave Days</span>
+          <span class="p-2 rounded-lg bg-amber-50 text-amber-600 text-xs font-bold">DAYS</span>
+        </div>
+        <div id="kpiLeave" class="mt-2 text-3xl font-bold text-slate-900">0</div>
+        <div id="kpiLeaveSub" class="mt-1 text-xs text-slate-500">Avg 0.0 days / employee</div>
+      </div>
+    </section>
+
+    <!-- Primary Charts Row -->
+    <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- Salary Distribution Chart -->
+      <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+          <div>
+            <h2 class="text-base font-semibold text-slate-900">Salary Analysis</h2>
+            <p class="text-xs text-slate-500">Distribution by bracket, department, or seniority</p>
+          </div>
+          <select id="salaryChartMode" class="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-slate-50 font-medium">
+            <option value="brackets">Salary Brackets (Histogram)</option>
+            <option value="byDept">Avg Salary by Department</option>
+            <option value="byLevel">Avg Salary by Seniority</option>
+          </select>
+        </div>
+        <div class="relative h-72 w-full">
+          <canvas id="salaryChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Sick Leave Absences by Department -->
+      <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+          <div>
+            <h2 class="text-base font-semibold text-slate-900">Sick Leave Absences by Department (2026)</h2>
+            <p class="text-xs text-slate-500">Total sick days and average per employee</p>
+          </div>
+          <select id="sickChartMode" class="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-slate-50 font-medium">
+            <option value="both">Total &amp; Avg per Employee</option>
+            <option value="total">Total Sick Days Only</option>
+            <option value="avg">Avg Sick Days Only</option>
+          </select>
+        </div>
+        <div class="relative h-72 w-full">
+          <canvas id="sickChart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- Secondary Exploration Charts Row -->
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Workforce Composition -->
+      <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col">
+        <div class="flex items-center justify-between gap-2 mb-4">
+          <div>
+            <h2 class="text-base font-semibold text-slate-900">Workforce Structure</h2>
+            <p class="text-xs text-slate-500">Headcount split</p>
+          </div>
+          <select id="structureChartMode" class="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-slate-50 font-medium">
+            <option value="Dzial">By Department</option>
+            <option value="Tryb_Pracy">By Work Mode</option>
+            <option value="Poziom">By Seniority</option>
+            <option value="Rodzaj_Umowy">By Contract</option>
+          </select>
+        </div>
+        <div class="relative h-64 w-full">
+          <canvas id="structureChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Tenure vs Salary & Performance Scatter -->
+      <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm lg:col-span-2 flex flex-col">
+        <div class="flex items-center justify-between gap-2 mb-4">
+          <div>
+            <h2 class="text-base font-semibold text-slate-900">Tenure vs. Gross Salary (Colored by Status)</h2>
+            <p class="text-xs text-slate-500">Hover any point for position, annual rating, and sick leave details</p>
+          </div>
+        </div>
+        <div class="relative h-64 w-full">
+          <canvas id="scatterChart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- Searchable & Sortable Employee Table -->
+    <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="p-5 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h2 class="text-base font-semibold text-slate-900">Employee Directory</h2>
+          <p id="tableCount" class="text-xs text-slate-500">Showing 25 of 25 employees</p>
+        </div>
+        <div class="relative w-full sm:w-80">
+          <input
+            id="tableSearch"
+            type="text"
+            placeholder="Search ID, name/role, department, level..."
+            class="w-full pl-9 pr-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          />
+          <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-slate-200 text-sm">
+          <thead class="bg-slate-50 text-xs font-semibold text-slate-600 uppercase tracking-wider">
+            <tr>
+              <th class="px-4 py-3 text-left"><button class="sort-btn flex items-center gap-1" data-col="ID_Pracownika">ID ↕</button></th>
+              <th class="px-4 py-3 text-left"><button class="sort-btn flex items-center gap-1" data-col="Dzial">Department ↕</button></th>
+              <th class="px-4 py-3 text-left"><button class="sort-btn flex items-center gap-1" data-col="Stanowisko">Position ↕</button></th>
+              <th class="px-4 py-3 text-left"><button class="sort-btn flex items-center gap-1" data-col="Poziom">Level ↕</button></th>
+              <th class="px-4 py-3 text-left"><button class="sort-btn flex items-center gap-1" data-col="Rodzaj_Umowy">Contract ↕</button></th>
+              <th class="px-4 py-3 text-left"><button class="sort-btn flex items-center gap-1" data-col="Tryb_Pracy">Mode ↕</button></th>
+              <th class="px-4 py-3 text-right"><button class="sort-btn inline-flex items-center gap-1" data-col="Wynagrodzenie_Brutto_PLN">Salary (PLN) ↕</button></th>
+              <th class="px-4 py-3 text-right"><button class="sort-btn inline-flex items-center gap-1" data-col="Staz_Pracy_Lata">Tenure (Yrs) ↕</button></th>
+              <th class="px-4 py-3 text-right"><button class="sort-btn inline-flex items-center gap-1" data-col="Dni_Urlopu_Zaleglego">Overdue Leave ↕</button></th>
+              <th class="px-4 py-3 text-right"><button class="sort-btn inline-flex items-center gap-1" data-col="Absencja_Chorobowa_Dni_2026">Sick Days ↕</button></th>
+              <th class="px-4 py-3 text-right"><button class="sort-btn inline-flex items-center gap-1" data-col="Ocena_Roczna">Rating ↕</button></th>
+              <th class="px-4 py-3 text-center"><button class="sort-btn inline-flex items-center gap-1" data-col="Status">Status ↕</button></th>
+            </tr>
+          </thead>
+          <tbody id="employeeTableBody" class="divide-y divide-slate-100 bg-white"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // Exact CSV Dataset Embedded
+    const rawCsv = `ID_Pracownika,Dzial,Stanowisko,Poziom,Rodzaj_Umowy,Tryb_Pracy,Wynagrodzenie_Brutto_PLN,Staz_Pracy_Lata,Dni_Urlopu_Zaleglego,Absencja_Chorobowa_Dni_2026,Ocena_Roczna,Status
+EMP001,IT,Programista Python,Senior,Umowa o prace,Zdalny,18500,5.2,4,2,4.8,Aktywny
+EMP002,IT,Analityk Danych,Mid,Umowa o prace,Hybrydowy,13200,3.1,8,5,4.5,Aktywny
+EMP003,IT,Administrator Systemow,Senior,B2B,Zdalny,19000,6.5,0,0,4.7,Aktywny
+EMP004,IT,Tester Oprogramowania,Junior,Umowa o prace,Hybrydowy,7800,1.2,2,12,3.9,Aktywny
+EMP005,IT,DevOps Engineer,Senior,Umowa o prace,Zdalny,21000,7.0,11,1,4.9,Aktywny
+EMP006,Sprzedaz,Account Manager,Mid,Umowa o prace,Stacjonarny,9500,2.8,6,8,4.2,Aktywny
+EMP007,Sprzedaz,Key Account Manager,Senior,Umowa o prace,Hybrydowy,14000,4.5,14,3,4.6,Aktywny
+EMP008,Sprzedaz,Specjalista ds. Sprzedazy,Junior,Umowa zlecenie,Stacjonarny,5500,0.6,0,15,3.4,Odejscie
+EMP009,Sprzedaz,Kierownik Regionu,Manager,Umowa o prace,Hybrydowy,16500,8.1,9,4,4.7,Aktywny
+EMP010,Sprzedaz,Specjalista ds. Sprzedazy,Mid,Umowa o prace,Stacjonarny,8900,2.1,3,19,3.6,Odejscie
+EMP011,HR i Administracja,Specjalista ds. Kadr i Plac,Senior,Umowa o prace,Hybrydowy,10500,6.0,5,3,4.9,Aktywny
+EMP012,HR i Administracja,HR Business Partner,Senior,Umowa o prace,Hybrydowy,13500,5.5,7,2,4.8,Aktywny
+EMP013,HR i Administracja,Mlodszy Specjalista HR,Junior,Umowa o prace,Stacjonarny,6500,1.0,1,6,4.1,Aktywny
+EMP014,Finanse,Ksiegowy,Mid,Umowa o prace,Hybrydowy,9200,3.4,4,4,4.3,Aktywny
+EMP015,Finanse,Glowny Ksiegowy,Manager,Umowa o prace,Hybrydowy,17000,9.5,12,1,4.9,Aktywny
+EMP016,Finanse,Kontroler Finansowy,Senior,Umowa o prace,Zdalny,14800,4.8,6,2,4.6,Aktywny
+EMP017,Produkcja i Logistyka,Brygadzista,Senior,Umowa o prace,Stacjonarny,8800,7.2,10,9,4.4,Aktywny
+EMP018,Produkcja i Logistyka,Specjalista ds. Logistyki,Mid,Umowa o prace,Stacjonarny,7900,2.9,5,11,4.0,Aktywny
+EMP019,Produkcja i Logistyka,Magazynier,Junior,Umowa o prace,Stacjonarny,5800,1.5,2,22,3.5,Odejscie
+EMP020,Produkcja i Logistyka,Kierownik Magazynu,Manager,Umowa o prace,Stacjonarny,12500,6.8,15,4,4.5,Aktywny
+EMP021,Marketing,Specjalista ds. Digital Marketingu,Mid,Umowa o prace,Zdalny,9400,2.5,3,5,4.4,Aktywny
+EMP022,Marketing,Content Designer,Junior,B2B,Zdalny,7200,1.4,0,0,4.1,Aktywny
+EMP023,Marketing,Marketing Manager,Manager,Umowa o prace,Hybrydowy,15200,5.9,8,3,4.7,Aktywny
+EMP024,IT,Architekt Systemowy,Lead,Umowa o prace,Zdalny,24500,8.4,13,2,5.0,Aktywny
+EMP025,Produkcja i Logistyka,Planista Produkcji,Mid,Umowa o prace,Hybrydowy,8600,3.7,6,7,4.2,Aktywny`;
+
+    // Parse CSV
+    const lines = rawCsv.trim().split('\n');
+    const headers = lines[0].split(',');
+    const numericCols = new Set([
+      'Wynagrodzenie_Brutto_PLN',
+      'Staz_Pracy_Lata',
+      'Dni_Urlopu_Zaleglego',
+      'Absencja_Chorobowa_Dni_2026',
+      'Ocena_Roczna'
+    ]);
+
+    const employees = lines.slice(1).map(line => {
+      const vals = line.split(',');
+      const obj = {};
+      headers.forEach((h, idx) => {
+        obj[h] = numericCols.has(h) ? Number(vals[idx]) : vals[idx];
+      });
+      return obj;
+    });
+
+    // DOM Elements
+    const filterDept = document.getElementById('filterDept');
+    const filterContract = document.getElementById('filterContract');
+    const filterMode = document.getElementById('filterMode');
+    const filterStatus = document.getElementById('filterStatus');
+    const tableSearch = document.getElementById('tableSearch');
+    const salaryChartMode = document.getElementById('salaryChartMode');
+    const sickChartMode = document.getElementById('sickChartMode');
+    const structureChartMode = document.getElementById('structureChartMode');
+
+    let sortCol = 'ID_Pracownika';
+    let sortAsc = true;
+
+    // Populate Filter Dropdowns
+    function populateSelect(selectEl, field) {
+      const unique = [...new Set(employees.map(e => e[field]))].sort();
+      unique.forEach(val => {
+        const opt = document.createElement('option');
+        opt.value = val;
+        opt.textContent = val;
+        selectEl.appendChild(opt);
+      });
+    }
+    populateSelect(filterDept, 'Dzial');
+    populateSelect(filterContract, 'Rodzaj_Umowy');
+    populateSelect(filterMode, 'Tryb_Pracy');
+    populateSelect(filterStatus, 'Status');
+
+    // Chart Instances
+    let salaryChart, sickChart, structureChart, scatterChart;
+    const palette = ['#4f46e5', '#0ea5e9', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'];
+
+    function getFilteredData() {
+      const d = filterDept.value;
+      const c = filterContract.value;
+      const m = filterMode.value;
+      const s = filterStatus.value;
+
+      return employees.filter(e =>
+        (d === 'ALL' || e.Dzial === d) &&
+        (c === 'ALL' || e.Rodzaj_Umowy === c) &&
+        (m === 'ALL' || e.Tryb_Pracy === m) &&
+        (s === 'ALL' || e.Status === s)
+      );
+    }
+
+    function formatPLN(num) {
+      return Math.round(num).toLocaleString('en-US') + ' PLN';
+    }
+
+    function updateKPIs(data) {
+      const total = data.length;
+      const active = data.filter(e => e.Status === 'Aktywny').length;
+      const left = data.filter(e => e.Status === 'Odejscie').length;
+
+      document.getElementById('kpiHeadcount').textContent = total;
+      document.getElementById('kpiHeadcountSub').textContent = `${active} active · ${left} departures`;
+
+      if (total === 0) {
+        document.getElementById('kpiAvgSalary').textContent = '0 PLN';
+        document.getElementById('kpiAvgSalarySub').textContent = 'Median: 0 PLN';
+        document.getElementById('kpiTurnover').textContent = '0.0%';
+        document.getElementById('kpiTurnoverSub').textContent = '0 departures in selection';
+        document.getElementById('kpiLeave').textContent = '0';
+        document.getElementById('kpiLeaveSub').textContent = 'Avg 0.0 days / employee';
+        return;
+      }
+
+      const salaries = data.map(e => e.Wynagrodzenie_Brutto_PLN).sort((a, b) => a - b);
+      const avgSal = salaries.reduce((sum, v) => sum + v, 0) / total;
+      const mid = Math.floor(total / 2);
+      const medianSal = total % 2 !== 0 ? salaries[mid] : (salaries[mid - 1] + salaries[mid]) / 2;
+
+      document.getElementById('kpiAvgSalary').textContent = formatPLN(avgSal);
+      document.getElementById('kpiAvgSalarySub').textContent = `Median: ${formatPLN(medianSal)}`;
+
+      const turnover = (left / total) * 100;
+      document.getElementById('kpiTurnover').textContent = turnover.toFixed(1) + '%';
+      document.getElementById('kpiTurnoverSub').textContent = `${left} departure${left === 1 ? '' : 's'} in selection`;
+
+      const totalLeave = data.reduce((sum, e) => sum + e.Dni_Urlopu_Zaleglego, 0);
+      document.getElementById('kpiLeave').textContent = totalLeave;
+      document.getElementById('kpiLeaveSub').textContent = `Avg ${(totalLeave / total).toFixed(1)} days / employee`;
+    }
+
+    function updateSalaryChart(data) {
+      const mode = salaryChartMode.value;
+      const ctx = document.getElementById('salaryChart').getContext('2d');
+      if (salaryChart) salaryChart.destroy();
+
+      let labels = [], values = [], labelText = '';
+
+      if (mode === 'brackets') {
+        const brackets = [
+          { label: '< 8k', min: 0, max: 7999 },
+          { label: '8k – 12k', min: 8000, max: 11999 },
+          { label: '12k – 16k', min: 12000, max: 15999 },
+          { label: '16k – 20k', min: 16000, max: 19999 },
+          { label: '20k+', min: 20000, max: Infinity }
+        ];
+        labels = brackets.map(b => b.label);
+        values = brackets.map(b => data.filter(e => e.Wynagrodzenie_Brutto_PLN >= b.min && e.Wynagrodzenie_Brutto_PLN <= b.max).length);
+        labelText = 'Employees';
+      } else {
+        const groupKey = mode === 'byDept' ? 'Dzial' : 'Poziom';
+        const groups = {};
+        data.forEach(e => {
+          if (!groups[e[groupKey]]) groups[e[groupKey]] = [];
+          groups[e[groupKey]].push(e.Wynagrodzenie_Brutto_PLN);
+        });
+        const order = mode === 'byLevel' ? ['Junior', 'Mid', 'Senior', 'Lead', 'Manager'] : Object.keys(groups).sort();
+        labels = order.filter(k => groups[k]);
+        values = labels.map(k => Math.round(groups[k].reduce((a, b) => a + b, 0) / groups[k].length));
+        labelText = 'Avg Gross Salary (PLN)';
+      }
+
+      salaryChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: labelText,
+            data: values,
+            backgroundColor: '#4f46e5',
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: { precision: 0 }
+            }
+          }
+        }
+      });
+    }
+
+    function updateSickChart(data) {
+      const mode = sickChartMode.value;
+      const ctx = document.getElementById('sickChart').getContext('2d');
+      if (sickChart) sickChart.destroy();
+
+      const groups = {};
+      data.forEach(e => {
+        if (!groups[e.Dzial]) groups[e.Dzial] = { total: 0, count: 0 };
+        groups[e.Dzial].total += e.Absencja_Chorobowa_Dni_2026;
+        groups[e.Dzial].count += 1;
+      });
+
+      const labels = Object.keys(groups).sort((a, b) => groups[b].total - groups[a].total);
+      const totals = labels.map(k => groups[k].total);
+      const avgs = labels.map(k => Number((groups[k].total / groups[k].count).toFixed(1)));
+
+      const datasets = [];
+      if (mode === 'both' || mode === 'total') {
+        datasets.push({
+          label: 'Total Sick Days',
+          data: totals,
+          backgroundColor: '#f59e0b',
+          borderRadius: 6,
+          yAxisID: 'y'
+        });
+      }
+      if (mode === 'both' || mode === 'avg') {
+        datasets.push({
+          label: 'Avg Days / Employee',
+          data: avgs,
+          backgroundColor: '#ef4444',
+          borderRadius: 6,
+          yAxisID: mode === 'both' ? 'y1' : 'y'
+        });
+      }
+
+      const scales = {
+        y: { beginAtZero: true, position: 'left', title: { display: true, text: mode === 'avg' ? 'Avg Days' : 'Total Days' } }
+      };
+      if (mode === 'both') {
+        scales.y1 = {
+          beginAtZero: true,
+          position: 'right',
+          grid: { drawOnChartArea: false },
+          title: { display: true, text: 'Avg Days' }
+        };
+      }
+
+      sickChart = new Chart(ctx, {
+        type: 'bar',
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales
+        }
+      });
+    }
+
+    function updateStructureChart(data) {
+      const field = structureChartMode.value;
+      const ctx = document.getElementById('structureChart').getContext('2d');
+      if (structureChart) structureChart.destroy();
+
+      const counts = {};
+      data.forEach(e => { counts[e[field]] = (counts[e[field]] || 0) + 1; });
+      const labels = Object.keys(counts);
+      const values = labels.map(k => counts[k]);
+
+      structureChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels,
+          datasets: [{
+            data: values,
+            backgroundColor: labels.map((_, i) => palette[i % palette.length]),
+            borderWidth: 2,
+            borderColor: '#ffffff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }
+          }
+        }
+      });
+    }
+
+    function updateScatterChart(data) {
+      const ctx = document.getElementById('scatterChart').getContext('2d');
+      if (scatterChart) scatterChart.destroy();
+
+      const activePts = data.filter(e => e.Status === 'Aktywny').map(e => ({
+        x: e.Staz_Pracy_Lata,
+        y: e.Wynagrodzenie_Brutto_PLN,
+        emp: e
+      }));
+      const leftPts = data.filter(e => e.Status === 'Odejscie').map(e => ({
+        x: e.Staz_Pracy_Lata,
+        y: e.Wynagrodzenie_Brutto_PLN,
+        emp: e
+      }));
+
+      scatterChart = new Chart(ctx, {
+        type: 'scatter',
+        data: {
+          datasets: [
+            {
+              label: 'Aktywny',
+              data: activePts,
+              backgroundColor: '#10b981',
+              pointRadius: 6,
+              pointHoverRadius: 8
+            },
+            {
+              label: 'Odejscie',
+              data: leftPts,
+              backgroundColor: '#ef4444',
+              pointRadius: 7,
+              pointHoverRadius: 9,
+              pointStyle: 'triangle'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { title: { display: true, text: 'Tenure (Years)' }, beginAtZero: true },
+            y: { title: { display: true, text: 'Gross Salary (PLN)' }, beginAtZero: true }
+          },
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: (ctx) => {
+                  const e = ctx.raw.emp;
+                  return [
+                    `${e.ID_Pracownika} · ${e.Stanowisko} (${e.Poziom})`,
+                    `Dept: ${e.Dzial} | Salary: ${formatPLN(e.Wynagrodzenie_Brutto_PLN)}`,
+                    `Tenure: ${e.Staz_Pracy_Lata} yrs | Rating: ${e.Ocena_Roczna} | Sick: ${e.Absencja_Chorobowa_Dni_2026}d`
+                  ];
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function updateTable(data) {
+      const q = tableSearch.value.trim().toLowerCase();
+      let rows = data.filter(e => {
+        if (!q) return true;
+        return (
+          e.ID_Pracownika.toLowerCase().includes(q) ||
+          e.Dzial.toLowerCase().includes(q) ||
+          e.Stanowisko.toLowerCase().includes(q) ||
+          e.Poziom.toLowerCase().includes(q) ||
+          e.Rodzaj_Umowy.toLowerCase().includes(q) ||
+          e.Tryb_Pracy.toLowerCase().includes(q) ||
+          e.Status.toLowerCase().includes(q)
+        );
+      });
+
+      rows.sort((a, b) => {
+        const valA = a[sortCol];
+        const valB = b[sortCol];
+        if (typeof valA === 'number') return sortAsc ? valA - valB : valB - valA;
+        return sortAsc ? String(valA).localeCompare(String(valB)) : String(valB).localeCompare(String(valA));
+      });
+
+      document.getElementById('tableCount').textContent = `Showing ${rows.length} of ${employees.length} employees`;
+      const tbody = document.getElementById('employeeTableBody');
+
+      if (rows.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="12" class="px-4 py-8 text-center text-slate-400">No employees match the current filters or search query.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = rows.map(e => {
+        const statusBadge = e.Status === 'Aktywny'
+          ? `<span class="px-2 py-0.5 text-xs font-medium rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Aktywny</span>`
+          : `<span class="px-2 py-0.5 text-xs font-medium rounded-full bg-rose-50 text-rose-700 border border-rose-200">Odejscie</span>`;
+
+        const sickHighlight = e.Absencja_Chorobowa_Dni_2026 >= 12 ? 'text-rose-600 font-semibold' : 'text-slate-700';
+
+        return `
+          <tr class="hover:bg-slate-50 transition">
+            <td class="px-4 py-3 font-mono text-xs font-semibold text-indigo-600">${e.ID_Pracownika}</td>
+            <td class="px-4 py-3 text-slate-800">${e.Dzial}</td>
+            <td class="px-4 py-3 font-medium text-slate-900">${e.Stanowisko}</td>
+            <td class="px-4 py-3 text-slate-600">${e.Poziom}</td>
+            <td class="px-4 py-3 text-slate-600">${e.Rodzaj_Umowy}</td>
+            <td class="px-4 py-3 text-slate-600">${e.Tryb_Pracy}</td>
+            <td class="px-4 py-3 text-right font-medium text-slate-900">${e.Wynagrodzenie_Brutto_PLN.toLocaleString('en-US')}</td>
+            <td class="px-4 py-3 text-right text-slate-700">${e.Staz_Pracy_Lata.toFixed(1)}</td>
+            <td class="px-4 py-3 text-right text-slate-700">${e.Dni_Urlopu_Zaleglego}</td>
+            <td class="px-4 py-3 text-right ${sickHighlight}">${e.Absencja_Chorobowa_Dni_2026}</td>
+            <td class="px-4 py-3 text-right font-medium text-slate-800">${e.Ocena_Roczna.toFixed(1)}</td>
+            <td class="px-4 py-3 text-center">${statusBadge}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function renderAll() {
+      const filtered = getFilteredData();
+      updateKPIs(filtered);
+      updateSalaryChart(filtered);
+      updateSickChart(filtered);
+      updateStructureChart(filtered);
+      updateScatterChart(filtered);
+      updateTable(filtered);
+    }
+
+    // Event Listeners
+    [filterDept, filterContract, filterMode, filterStatus].forEach(el => {
+      el.addEventListener('change', renderAll);
+    });
+    salaryChartMode.addEventListener('change', () => updateSalaryChart(getFilteredData()));
+    sickChartMode.addEventListener('change', () => updateSickChart(getFilteredData()));
+    structureChartMode.addEventListener('change', () => updateStructureChart(getFilteredData()));
+    tableSearch.addEventListener('input', () => updateTable(getFilteredData()));
+
+    document.querySelectorAll('.sort-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const col = btn.dataset.col;
+        if (sortCol === col) {
+          sortAsc = !sortAsc;
+        } else {
+          sortCol = col;
+          sortAsc = true;
+        }
+        updateTable(getFilteredData());
+      });
+    });
+
+    document.getElementById('resetFiltersBtn').addEventListener('click', () => {
+      filterDept.value = 'ALL';
+      filterContract.value = 'ALL';
+      filterMode.value = 'ALL';
+      filterStatus.value = 'ALL';
+      tableSearch.value = '';
+      renderAll();
+    });
+
+    document.getElementById('exportCsvBtn').addEventListener('click', () => {
+      const filtered = getFilteredData();
+      const csvContent = [
+        headers.join(','),
+        ...filtered.map(row => headers.map(h => row[h]).join(','))
+      ].join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'hr_filtered_data.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    // Initial Render
+    renderAll();
+  </script>
+</body>
+</html>
